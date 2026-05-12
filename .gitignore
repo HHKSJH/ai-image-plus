@@ -1,0 +1,6 @@
+node_modules/
+dist/
+v3-img/node_modules/
+v3-img/dist/
+.DS_Store
+Thumbs.db

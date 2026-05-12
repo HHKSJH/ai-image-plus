@@ -1,0 +1,125 @@
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  body {
+    padding: 12px;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .sidebar,
+  .workspace,
+  .composer {
+    border-radius: 26px;
+  }
+
+  .chat {
+    height: min(520px, 56vh);
+    max-height: min(520px, 56vh);
+  }
+
+  .session-list {
+    max-height: min(360px, 34vh);
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 0;
+  }
+
+  .app-shell {
+    width: 100%;
+    gap: 0;
+  }
+
+  .sidebar,
+  .workspace,
+  .composer {
+    border-radius: 0;
+    box-shadow: none;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .sidebar,
+  .workspace,
+  .composer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sidebar {
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+
+  .workspace {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .composer {
+    padding-top: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .workspace-head,
+  .composer-bar,
+  .memory-panel,
+  .edit-source-panel,
+  .confirm-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .edit-source-panel,
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-upload {
+    width: 100%;
+    height: 144px;
+  }
+
+  .head-actions {
+    margin-top: 10px;
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .head-action-btn,
+  .panel-danger-btn,
+  .actions button,
+  .confirm-actions button {
+    width: 100%;
+  }
+
+  .memory-actions,
+  .actions {
+    width: 100%;
+  }
+
+  .chat {
+    height: min(420px, 48vh);
+    max-height: min(420px, 48vh);
+  }
+
+  .session-list {
+    max-height: min(320px, 32vh);
+  }
+}
