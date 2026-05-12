@@ -5,11 +5,16 @@ import { router } from "./router";
 import "./styles/main.scss";
 
 normalizeLegacyUrl();
+boot();
 
-const app = createApp(App);
-app.use(createPinia());
-app.use(router);
-app.mount("#app");
+async function boot() {
+  await setupDebugConsole();
+
+  const app = createApp(App);
+  app.use(createPinia());
+  app.use(router);
+  app.mount("#app");
+}
 
 function normalizeLegacyUrl() {
   const { pathname, hash, search } = window.location;
@@ -26,4 +31,15 @@ function normalizeLegacyUrl() {
   const nextUrl = `${normalizedPath}${search}#/${mode}`;
 
   window.history.replaceState(null, "", nextUrl);
+}
+
+async function setupDebugConsole() {
+  const searchParams = new URLSearchParams(window.location.search);
+  if (searchParams.get("debug") !== "true") {
+    return;
+  }
+
+  const { default: VConsole } = await import("vconsole");
+  const vConsole = new VConsole();
+  window.__V_CONSOLE__ = vConsole;
 }
