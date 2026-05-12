@@ -76,6 +76,9 @@
 }
 
 .session-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-height: 0;
   padding: 12px 14px;
   text-align: left;
@@ -102,11 +105,15 @@
 }
 
 .session-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 38px;
   height: 38px;
   min-height: 38px;
   padding: 0;
   color: #8b98a5;
+  line-height: 1;
 }
 
 .session-item:hover {

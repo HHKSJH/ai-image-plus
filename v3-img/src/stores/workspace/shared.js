@@ -66,7 +66,8 @@ export function createWorkspaceShared(state, computedState) {
   }
 
   async function persistCurrentSession() {
-    state.currentSessions[state.activeMode.value] = await storage.saveSession(computedState.currentSession.value);
+    await storage.saveSession(computedState.currentSession.value);
+    state.currentSessions[state.activeMode.value] = await storage.getSession(computedState.currentSession.value.id);
     await refreshSessions();
     await refreshStorageUsage();
   }

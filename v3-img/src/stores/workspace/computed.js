@@ -28,7 +28,7 @@ export function createWorkspaceComputed(state) {
   const contextSummaryText = computed(() => {
     if (!currentSession.value.contextPrompt) {
       return state.activeMode.value === "edit"
-        ? "当前没有可沿用的编辑结果。先完成一次编辑后，这里会显示可继续修改的记录。"
+        ? "当前没有可复用的编辑结果。先完成一次编辑后，这里会显示可继续修改的记录。"
         : "当前没有可继承的成功记录。先生成一张图后，这里会显示上下文摘要。";
     }
 

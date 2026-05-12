@@ -195,7 +195,8 @@ export async function saveSession(session) {
         id: message.id,
         role: message.role,
         text: message.text,
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        canRetry: Boolean(message.canRetry)
       };
     }
 
@@ -205,6 +206,7 @@ export async function saveSession(session) {
         role: message.role,
         text: message.text,
         createdAt: message.createdAt,
+        canRetry: Boolean(message.canRetry),
         imageRef: message.imageRef
       };
     }
@@ -223,6 +225,7 @@ export async function saveSession(session) {
       role: message.role,
       text: message.text,
       createdAt: message.createdAt,
+      canRetry: Boolean(message.canRetry),
       imageRef: {
         kind: "asset",
         assetId: message.imageRef.assetId
