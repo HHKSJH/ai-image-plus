@@ -34,12 +34,33 @@ function normalizeLegacyUrl() {
 }
 
 async function setupDebugConsole() {
-  const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get("debug") !== "true") {
+  if (!isDebugEnabled()) {
     return;
   }
 
   const { default: VConsole } = await import("vconsole");
   const vConsole = new VConsole();
   window.__V_CONSOLE__ = vConsole;
+}
+
+function isDebugEnabled() {
+  const candidates = [
+    window.location.search,
+    extractHashQuery(window.location.hash)
+  ].filter(Boolean);
+
+  return candidates.some((queryString) => {
+    const searchParams = new URLSearchParams(queryString);
+    const debugValue = (searchParams.get("debug") || "").trim().toLowerCase();
+    return debugValue === "true" || debugValue === "1";
+  });
+}
+
+function extractHashQuery(hash) {
+  if (!hash) {
+    return "";
+  }
+
+  const queryIndex = hash.indexOf("?");
+  return queryIndex >= 0 ? hash.slice(queryIndex) : "";
 }
