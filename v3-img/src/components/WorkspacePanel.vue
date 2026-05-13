@@ -23,6 +23,14 @@ defineProps({
 });
 
 const emit = defineEmits(["preview", "retry"]);
+
+function getMessageImages(message) {
+  if (Array.isArray(message.imageUrls) && message.imageUrls.length) {
+    return message.imageUrls;
+  }
+
+  return message.imageUrl ? [message.imageUrl] : [];
+}
 </script>
 
 <template>
@@ -47,8 +55,17 @@ const emit = defineEmits(["preview", "retry"]);
         <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
           <div class="bubble">
             {{ message.text }}
-            <div v-if="message.imageUrl" class="card">
-              <img :src="message.imageUrl" alt="生成结果" loading="lazy" @click="emit('preview', message.imageUrl)" />
+            <div v-if="getMessageImages(message).length" class="card">
+              <div class="image-grid" :class="`count-${Math.min(getMessageImages(message).length, 4)}`">
+                <img
+                  v-for="(imageUrl, index) in getMessageImages(message)"
+                  :key="`${message.id}_${index}`"
+                  :src="imageUrl"
+                  alt="生成结果"
+                  loading="lazy"
+                  @click="emit('preview', imageUrl)"
+                />
+              </div>
             </div>
             <div v-if="message.canRetry" class="message-actions">
               <button class="secondary retry-action" type="button" @click="emit('retry')">重试</button>

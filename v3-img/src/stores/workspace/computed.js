@@ -1,6 +1,14 @@
 import { computed } from "vue";
 import { summarizePrompt } from "../../utils/format";
 
+function getMessageImageCount(message) {
+  if (Array.isArray(message.imageRefs) && message.imageRefs.length) {
+    return message.imageRefs.length;
+  }
+
+  return message.imageRef ? 1 : 0;
+}
+
 export function createWorkspaceComputed(state) {
   const currentSession = computed(() => state.currentSessions[state.activeMode.value]);
   const currentForm = computed(() => state.forms[state.activeMode.value]);
@@ -12,7 +20,7 @@ export function createWorkspaceComputed(state) {
   ));
 
   const currentSubtitle = computed(() => {
-    const imageCount = currentSession.value.messages.filter((message) => message.imageRef).length;
+    const imageCount = currentSession.value.messages.reduce((count, message) => count + getMessageImageCount(message), 0);
     if (imageCount) {
       return `当前${state.activeMode.value === "edit" ? "编辑" : "生成"}会话已有 ${imageCount} 张图片。`;
     }

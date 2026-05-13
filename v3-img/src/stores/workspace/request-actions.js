@@ -4,6 +4,29 @@ import { fileToRenderData, imageDataToRenderData } from "../../utils/image";
 import { buildFinalPrompt, buildPrompt, buildSessionTitle } from "./helpers";
 
 export function createWorkspaceRequestActions(state, computedState, shared) {
+  function appendAssistantImages(imageList, text) {
+    const renderedImages = imageList.map((imageData) => {
+      const renderData = imageDataToRenderData(imageData);
+      return {
+        imageRef: renderData.imageRef,
+        imageUrl: shared.rememberObjectUrl(renderData.imageUrl)
+      };
+    });
+
+    computedState.currentSession.value.messages.push({
+      id: storage.createId("msg"),
+      role: "assistant",
+      text,
+      createdAt: Date.now(),
+      imageRef: renderedImages[0]?.imageRef,
+      imageUrl: renderedImages[0]?.imageUrl || "",
+      imageRefs: renderedImages.map((item) => item.imageRef),
+      imageUrls: renderedImages.map((item) => item.imageUrl)
+    });
+
+    return renderedImages.at(-1) || null;
+  }
+
   function validatePayload(payload) {
     if (!payload.apiKey) {
       state.errorText.value = "请先输入 API Key。";
@@ -76,25 +99,16 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
 
     state.isLoading.value = true;
     try {
-      const imageData = await generateImage({
+      const imageList = await generateImage({
         apiKey: payload.apiKey,
         apiBaseUrl: payload.apiBaseUrl,
         prompt: finalPrompt,
         size: payload.size
       });
 
-      const renderData = imageDataToRenderData(imageData);
-      renderData.imageUrl = shared.rememberObjectUrl(renderData.imageUrl);
       computedState.currentSession.value.contextPrompt = buildPrompt(payload.prompt, payload.stylePreset);
       computedState.currentSession.value.lastPrompt = payload.prompt;
-      computedState.currentSession.value.messages.push({
-        id: storage.createId("msg"),
-        role: "assistant",
-        text: "图片已生成。",
-        createdAt: Date.now(),
-        imageRef: renderData.imageRef,
-        imageUrl: renderData.imageUrl
-      });
+      appendAssistantImages(imageList, "图片已生成。");
       await shared.persistCurrentSession();
     } catch (error) {
       const errorMessage = `请求失败：${error.message || "未知错误"}`;
@@ -153,7 +167,7 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
 
     state.isLoading.value = true;
     try {
-      const imageData = await editImage({
+      const imageList = await editImage({
         apiKey: payload.apiKey,
         apiBaseUrl: payload.apiBaseUrl,
         prompt: payload.prompt,
@@ -161,21 +175,12 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
         size: payload.size
       });
 
-      const renderData = imageDataToRenderData(imageData);
-      renderData.imageUrl = shared.rememberObjectUrl(renderData.imageUrl);
       computedState.currentSession.value.contextPrompt = payload.prompt;
       computedState.currentSession.value.lastPrompt = payload.prompt;
-      computedState.currentSession.value.messages.push({
-        id: storage.createId("msg"),
-        role: "assistant",
-        text: "图片已编辑。",
-        createdAt: Date.now(),
-        imageRef: renderData.imageRef,
-        imageUrl: renderData.imageUrl
-      });
+      const latestRenderData = appendAssistantImages(imageList, "图片已编辑。");
 
-      state.editContinuationSourceFile.value = renderData.imageRef?.blob
-        ? new File([renderData.imageRef.blob], "continued-edit-source.png", { type: renderData.imageRef.blob.type || "image/png" })
+      state.editContinuationSourceFile.value = latestRenderData?.imageRef?.blob
+        ? new File([latestRenderData.imageRef.blob], "continued-edit-source.png", { type: latestRenderData.imageRef.blob.type || "image/png" })
         : null;
 
       if (state.editContinuationSourceFile.value && state.contextMode.value === "continuation") {

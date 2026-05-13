@@ -29,9 +29,24 @@ export function buildSessionTitle(prompt) {
 }
 
 export function findLatestAssistantImageBlob(session) {
-  const latestImageMessage = [...session.messages]
-    .reverse()
-    .find((message) => message.role === "assistant" && message.imageRef?.blob);
+  const latestImageMessage = [...session.messages].reverse().find((message) => {
+    if (message.role !== "assistant") {
+      return false;
+    }
 
-  return latestImageMessage?.imageRef?.blob || null;
+    if (message.imageRefs?.length) {
+      return message.imageRefs.some((imageRef) => imageRef?.blob);
+    }
+
+    return Boolean(message.imageRef?.blob);
+  });
+
+  if (!latestImageMessage) {
+    return null;
+  }
+
+  const localImageRef = latestImageMessage.imageRefs
+    ? [...latestImageMessage.imageRefs].reverse().find((imageRef) => imageRef?.blob)
+    : null;
+  return localImageRef?.blob || latestImageMessage.imageRef?.blob || null;
 }

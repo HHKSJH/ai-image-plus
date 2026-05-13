@@ -141,6 +141,35 @@
   cursor: zoom-in;
 }
 
+.image-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.image-grid.count-1 {
+  grid-template-columns: 1fr;
+}
+
+.image-grid.count-2,
+.image-grid.count-3,
+.image-grid.count-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.image-grid img {
+  width: 100%;
+  display: block;
+  border-radius: 14px;
+  cursor: zoom-in;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.image-grid.count-1 img {
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
 .message-actions {
   margin-top: 12px;
   display: flex;

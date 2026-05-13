@@ -39,21 +39,48 @@ function buildRequestError(result, response) {
   return result?.error?.message || result?.message || `请求失败（HTTP ${response.status}）。`;
 }
 
-function readImageData(result) {
-  if (result?.kind === "blob" && result.blob) {
-    return { type: "blob", value: result.blob };
+function normalizeImageItem(item) {
+  if (!item) {
+    return null;
   }
 
-  const firstItem = result?.data?.[0] || result?.images?.[0] || result?.output?.[0];
-  const remoteUrl = firstItem?.url || firstItem?.image_url || result?.url || result?.image_url;
-  const base64Data = firstItem?.b64_json || firstItem?.b64 || result?.b64_json || result?.b64;
-
+  const remoteUrl = item.url || item.image_url;
   if (remoteUrl) {
     return { type: "url", value: remoteUrl };
   }
 
+  const base64Data = item.b64_json || item.b64;
   if (base64Data) {
     return { type: "base64", value: base64Data };
+  }
+
+  return null;
+}
+
+function readImageData(result) {
+  if (result?.kind === "blob" && result.blob) {
+    return [{ type: "blob", value: result.blob }];
+  }
+
+  const list = Array.isArray(result?.data)
+    ? result.data
+    : Array.isArray(result?.images)
+      ? result.images
+      : Array.isArray(result?.output)
+        ? result.output
+        : [];
+
+  const imageList = list
+    .map((item) => normalizeImageItem(item))
+    .filter(Boolean);
+
+  if (imageList.length) {
+    return imageList;
+  }
+
+  const fallbackImage = normalizeImageItem(result);
+  if (fallbackImage) {
+    return [fallbackImage];
   }
 
   throw new Error("接口未返回图片数据。");
