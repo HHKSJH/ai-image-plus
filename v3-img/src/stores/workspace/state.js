@@ -1,9 +1,27 @@
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
 import * as storage from "../../services/storage";
 
 export function createWorkspaceState() {
+  const config = reactive(storage.getLocalValues());
+
+  watch(
+    () => config.apiBaseUrl,
+    (nextApiBaseUrl) => {
+      storage.persistApiBaseUrl(nextApiBaseUrl);
+      config.apiKey = storage.getApiKeyForBaseUrl(nextApiBaseUrl);
+    }
+  );
+
+  watch(
+    () => config.apiKey,
+    (nextApiKey) => {
+      storage.persistApiKey(nextApiKey);
+      storage.persistApiKeyForBaseUrl(config.apiBaseUrl, nextApiKey);
+    }
+  );
+
   return {
-    config: reactive(storage.getLocalValues()),
+    config,
     activeMode: ref("generate"),
     contextMode: ref("continuation"),
     isInitialized: ref(false),

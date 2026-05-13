@@ -28,6 +28,7 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
 
   function persistLocalConfig(payload) {
     storage.persistApiKey(payload.apiKey);
+    storage.persistApiKeyForBaseUrl(payload.apiBaseUrl, payload.apiKey);
     storage.persistAccessKey(payload.accessKey);
     storage.persistApiBaseUrl(payload.apiBaseUrl);
   }

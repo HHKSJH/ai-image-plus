@@ -39,11 +39,9 @@ export function createWorkspaceUiActions(state, computedState, shared) {
     state.previewModalUrl.value = "";
   }
 
-  async function clearCurrentView() {
+  function clearCurrentView() {
     state.errorText.value = "";
-    closePreview();
-    computedState.currentSession.value.messages = computedState.currentSession.value.messages.filter((message) => !message.canRetry);
-    await shared.persistCurrentSession();
+    state.forms[state.activeMode.value].prompt = "";
   }
 
   function cleanup() {

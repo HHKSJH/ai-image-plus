@@ -1,4 +1,5 @@
 const API_KEY_STORAGE_KEY = "img_plus_api_key";
+const API_KEYS_BY_BASE_URL_STORAGE_KEY = "img_plus_api_keys_by_base_url";
 const ACCESS_KEY_STORAGE_KEY = "img_plus_access_key";
 const API_BASE_URL_STORAGE_KEY = "img_plus_api_base_url";
 const DB_NAME = "img_plus_history_db_v3";
@@ -22,6 +23,28 @@ function persistValue(key, value) {
     const trimmedValue = value.trim();
     if (trimmedValue) {
       window.localStorage.setItem(key, trimmedValue);
+    } else {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // noop
+  }
+}
+
+function readJsonValue(key) {
+  try {
+    const rawValue = window.localStorage.getItem(key);
+    return rawValue ? JSON.parse(rawValue) : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistJsonValue(key, value) {
+  try {
+    const entries = Object.entries(value).filter(([, item]) => typeof item === "string" && item.trim());
+    if (entries.length) {
+      window.localStorage.setItem(key, JSON.stringify(Object.fromEntries(entries)));
     } else {
       window.localStorage.removeItem(key);
     }
@@ -114,15 +137,46 @@ export function createSession(mode = "generate") {
 }
 
 export function getLocalValues() {
+  const apiBaseUrl = readValue(API_BASE_URL_STORAGE_KEY) || "https://api.zectai.com/v1";
+  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
+
   return {
-    apiKey: readValue(API_KEY_STORAGE_KEY),
+    apiKey: apiKeyMap[apiBaseUrl] || readValue(API_KEY_STORAGE_KEY),
     accessKey: readValue(ACCESS_KEY_STORAGE_KEY),
-    apiBaseUrl: readValue(API_BASE_URL_STORAGE_KEY) || "https://api.zectai.com/v1"
+    apiBaseUrl
   };
 }
 
 export function persistApiKey(value) {
   persistValue(API_KEY_STORAGE_KEY, value);
+}
+
+export function getApiKeyForBaseUrl(apiBaseUrl) {
+  const normalizedBaseUrl = (apiBaseUrl || "").trim();
+  if (!normalizedBaseUrl) {
+    return "";
+  }
+
+  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
+  return apiKeyMap[normalizedBaseUrl] || "";
+}
+
+export function persistApiKeyForBaseUrl(apiBaseUrl, value) {
+  const normalizedBaseUrl = (apiBaseUrl || "").trim();
+  if (!normalizedBaseUrl) {
+    return;
+  }
+
+  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
+  const trimmedValue = value.trim();
+
+  if (trimmedValue) {
+    apiKeyMap[normalizedBaseUrl] = trimmedValue;
+  } else {
+    delete apiKeyMap[normalizedBaseUrl];
+  }
+
+  persistJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY, apiKeyMap);
 }
 
 export function persistAccessKey(value) {
