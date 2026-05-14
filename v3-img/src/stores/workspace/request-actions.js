@@ -4,6 +4,60 @@ import { fileToRenderData, imageDataToRenderData } from "../../utils/image";
 import { buildFinalPrompt, buildPrompt, buildSessionTitle } from "./helpers";
 
 export function createWorkspaceRequestActions(state, computedState, shared) {
+  function listAvailableApiKeys(apiBaseUrl) {
+    return storage.getApiKeyPoolForBaseUrl(apiBaseUrl)
+      .filter((item) => !item.disabled && !item.exhausted)
+      .map((item) => item.value);
+  }
+
+  function syncDisplayedApiKey(apiBaseUrl) {
+    const nextApiKey = storage.getApiKeyForBaseUrl(apiBaseUrl);
+    state.config.apiKey = nextApiKey;
+    state.config.apiKeysText = storage.getApiKeysTextForBaseUrl(apiBaseUrl);
+    storage.persistApiKey(nextApiKey);
+  }
+
+  function isInsufficientBalanceError(error) {
+    const errorMessage = String(error?.message || "").toLowerCase();
+    return [
+      "insufficient balance",
+      "insufficient quota",
+      "quota exceeded",
+      "余额不足",
+      "额度不足",
+      "credit balance",
+      "recharge"
+    ].some((keyword) => errorMessage.includes(keyword));
+  }
+
+  async function executeWithFallbackKeys(apiBaseUrl, requestHandler) {
+    const availableApiKeys = listAvailableApiKeys(apiBaseUrl);
+    if (!availableApiKeys.length) {
+      throw new Error("当前域名下没有可用的 API Key。");
+    }
+
+    let lastError = null;
+
+    for (const apiKey of availableApiKeys) {
+      try {
+        const result = await requestHandler(apiKey);
+        storage.resetApiKeyStatus(apiBaseUrl, apiKey);
+        syncDisplayedApiKey(apiBaseUrl);
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (!isInsufficientBalanceError(error)) {
+          throw error;
+        }
+
+        storage.markApiKeyExhausted(apiBaseUrl, apiKey);
+        syncDisplayedApiKey(apiBaseUrl);
+      }
+    }
+
+    throw lastError || new Error("当前没有可用的 API Key。");
+  }
+
   function appendAssistantImages(imageList, text) {
     const renderedImages = imageList.map((imageData) => {
       const renderData = imageDataToRenderData(imageData);
@@ -28,8 +82,8 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
   }
 
   function validatePayload(payload) {
-    if (!payload.apiKey) {
-      state.errorText.value = "请先输入 API Key。";
+    if (!listAvailableApiKeys(payload.apiBaseUrl).length) {
+      state.errorText.value = "请先为当前接口地址填写至少一个可用的 API Key。";
       return false;
     }
 
@@ -50,8 +104,7 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
   }
 
   function persistLocalConfig(payload) {
-    storage.persistApiKey(payload.apiKey);
-    storage.persistApiKeyForBaseUrl(payload.apiBaseUrl, payload.apiKey);
+    syncDisplayedApiKey(payload.apiBaseUrl);
     storage.persistAccessKey(payload.accessKey);
     storage.persistApiBaseUrl(payload.apiBaseUrl);
   }
@@ -60,7 +113,6 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
     const payload = {
       mode: "generate",
       prompt: state.forms.generate.prompt.trim(),
-      apiKey: state.config.apiKey.trim(),
       accessKey: state.config.accessKey.trim(),
       apiBaseUrl: state.config.apiBaseUrl.trim(),
       size: state.forms.generate.size,
@@ -99,12 +151,15 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
 
     state.isLoading.value = true;
     try {
-      const imageList = await generateImage({
-        apiKey: payload.apiKey,
-        apiBaseUrl: payload.apiBaseUrl,
-        prompt: finalPrompt,
-        size: payload.size
-      });
+      const imageList = await executeWithFallbackKeys(
+        payload.apiBaseUrl,
+        (apiKey) => generateImage({
+          apiKey,
+          apiBaseUrl: payload.apiBaseUrl,
+          prompt: finalPrompt,
+          size: payload.size
+        })
+      );
 
       computedState.currentSession.value.contextPrompt = buildPrompt(payload.prompt, payload.stylePreset);
       computedState.currentSession.value.lastPrompt = payload.prompt;
@@ -132,7 +187,6 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
     const payload = {
       mode: "edit",
       prompt: state.forms.edit.prompt.trim(),
-      apiKey: state.config.apiKey.trim(),
       accessKey: state.config.accessKey.trim(),
       apiBaseUrl: state.config.apiBaseUrl.trim(),
       size: state.forms.edit.size,
@@ -167,13 +221,16 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
 
     state.isLoading.value = true;
     try {
-      const imageList = await editImage({
-        apiKey: payload.apiKey,
-        apiBaseUrl: payload.apiBaseUrl,
-        prompt: payload.prompt,
-        imageFile: payload.sourceImageFile,
-        size: payload.size
-      });
+      const imageList = await executeWithFallbackKeys(
+        payload.apiBaseUrl,
+        (apiKey) => editImage({
+          apiKey,
+          apiBaseUrl: payload.apiBaseUrl,
+          prompt: payload.prompt,
+          imageFile: payload.sourceImageFile,
+          size: payload.size
+        })
+      );
 
       computedState.currentSession.value.contextPrompt = payload.prompt;
       computedState.currentSession.value.lastPrompt = payload.prompt;

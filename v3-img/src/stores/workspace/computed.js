@@ -30,7 +30,7 @@ export function createWorkspaceComputed(state) {
       : "输入需求后，生成结果会显示在这里。";
   });
 
-  const sessionMeta = computed(() => `${state.activeMode.value === "edit" ? "图片编辑" : "文生图"} · ${state.sessionsIndex.value.length} 个本地会话`);
+  const sessionMeta = computed(() => `${state.activeMode.value === "edit" ? "图片编辑" : "文字生图"} · ${state.sessionsIndex.value.length} 个本地会话`);
   const hasContext = computed(() => Boolean(currentSession.value.contextPrompt));
 
   const contextSummaryText = computed(() => {

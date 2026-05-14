@@ -1,5 +1,7 @@
 const API_KEY_STORAGE_KEY = "img_plus_api_key";
 const API_KEYS_BY_BASE_URL_STORAGE_KEY = "img_plus_api_keys_by_base_url";
+const API_KEY_POOL_BY_BASE_URL_STORAGE_KEY = "img_plus_api_key_pool_by_base_url";
+const API_SELECTED_KEY_BY_BASE_URL_STORAGE_KEY = "img_plus_api_selected_key_by_base_url";
 const ACCESS_KEY_STORAGE_KEY = "img_plus_access_key";
 const API_BASE_URL_STORAGE_KEY = "img_plus_api_base_url";
 const DB_NAME = "img_plus_history_db_v3";
@@ -51,6 +53,119 @@ function persistJsonValue(key, value) {
   } catch {
     // noop
   }
+}
+
+function normalizeApiBaseUrl(apiBaseUrl) {
+  return (apiBaseUrl || "").trim();
+}
+
+function createApiKeyRecord(value, extra = {}) {
+  const trimmedValue = typeof value === "string" ? value.trim() : "";
+  if (!trimmedValue) {
+    return null;
+  }
+
+  return {
+    value: trimmedValue,
+    exhausted: Boolean(extra.exhausted),
+    disabled: Boolean(extra.disabled),
+    lastErrorAt: Number(extra.lastErrorAt) || 0
+  };
+}
+
+function normalizeApiKeyPoolEntry(entry) {
+  if (!entry) {
+    return [];
+  }
+
+  if (typeof entry === "string") {
+    const record = createApiKeyRecord(entry);
+    return record ? [record] : [];
+  }
+
+  if (!Array.isArray(entry)) {
+    return [];
+  }
+
+  const normalizedList = [];
+  const seen = new Set();
+
+  entry.forEach((item) => {
+    const record = typeof item === "string"
+      ? createApiKeyRecord(item)
+      : createApiKeyRecord(item?.value, item);
+
+    if (!record || seen.has(record.value)) {
+      return;
+    }
+
+    seen.add(record.value);
+    normalizedList.push(record);
+  });
+
+  return normalizedList;
+}
+
+function readApiKeyPoolMap() {
+  const rawValue = readJsonValue(API_KEY_POOL_BY_BASE_URL_STORAGE_KEY);
+  return Object.fromEntries(
+    Object.entries(rawValue).map(([baseUrl, entry]) => [baseUrl, normalizeApiKeyPoolEntry(entry)])
+  );
+}
+
+function readSelectedApiKeyMap() {
+  const rawValue = readJsonValue(API_SELECTED_KEY_BY_BASE_URL_STORAGE_KEY);
+  return Object.fromEntries(
+    Object.entries(rawValue)
+      .map(([baseUrl, value]) => [normalizeApiBaseUrl(baseUrl), typeof value === "string" ? value.trim() : ""])
+      .filter(([baseUrl, value]) => baseUrl && value)
+  );
+}
+
+function persistApiKeyPoolMap(value) {
+  try {
+    const entries = Object.entries(value)
+      .map(([baseUrl, entry]) => [normalizeApiBaseUrl(baseUrl), normalizeApiKeyPoolEntry(entry)])
+      .filter(([baseUrl, entry]) => baseUrl && entry.length);
+
+    if (entries.length) {
+      window.localStorage.setItem(API_KEY_POOL_BY_BASE_URL_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)));
+    } else {
+      window.localStorage.removeItem(API_KEY_POOL_BY_BASE_URL_STORAGE_KEY);
+    }
+  } catch {
+    // noop
+  }
+}
+
+function getLegacyApiKey(apiBaseUrl) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
+  const legacyValue = typeof apiKeyMap[normalizedBaseUrl] === "string"
+    ? apiKeyMap[normalizedBaseUrl]
+    : "";
+
+  const record = createApiKeyRecord(legacyValue);
+  return record ? [record] : [];
+}
+
+function getStoredApiKeyPool(apiBaseUrl) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  if (!normalizedBaseUrl) {
+    return [];
+  }
+
+  const apiKeyPoolMap = readApiKeyPoolMap();
+  const currentPool = normalizeApiKeyPoolEntry(apiKeyPoolMap[normalizedBaseUrl]);
+  if (currentPool.length) {
+    return currentPool;
+  }
+
+  return getLegacyApiKey(normalizedBaseUrl);
+}
+
+function serializeApiKeysText(apiKeyPool) {
+  return apiKeyPool.map((item) => item.value).join("\n");
 }
 
 function requestToPromise(request) {
@@ -190,28 +305,37 @@ export function createSession(mode = "generate") {
 }
 
 export function getLocalValues() {
-  const apiBaseUrl = readValue(API_BASE_URL_STORAGE_KEY) || "https://api.zectai.com/v1";
-  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
+  persistApiKey("");
+  const apiBaseUrl = readValue(API_BASE_URL_STORAGE_KEY) || "https://aicodelink.top/v1";
+  const apiKeyPool = getStoredApiKeyPool(apiBaseUrl);
+  const firstAvailableApiKey = apiKeyPool.find((item) => !item.disabled && !item.exhausted)?.value || apiKeyPool[0]?.value || "";
 
   return {
-    apiKey: apiKeyMap[apiBaseUrl] || readValue(API_KEY_STORAGE_KEY),
+    apiKey: firstAvailableApiKey,
+    apiKeysText: serializeApiKeysText(apiKeyPool),
     accessKey: readValue(ACCESS_KEY_STORAGE_KEY),
     apiBaseUrl
   };
 }
 
 export function persistApiKey(value) {
-  persistValue(API_KEY_STORAGE_KEY, value);
+  try {
+    window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+  } catch {
+    // noop
+  }
 }
 
 export function getApiKeyForBaseUrl(apiBaseUrl) {
-  const normalizedBaseUrl = (apiBaseUrl || "").trim();
-  if (!normalizedBaseUrl) {
-    return "";
+  const apiKeyPool = getStoredApiKeyPool(apiBaseUrl);
+  const selectedApiKey = getSelectedApiKeyForBaseUrl(apiBaseUrl);
+  const availableApiKey = apiKeyPool.find((item) => item.value === selectedApiKey && !item.disabled && !item.exhausted);
+
+  if (availableApiKey) {
+    return availableApiKey.value;
   }
 
-  const apiKeyMap = readJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY);
-  return apiKeyMap[normalizedBaseUrl] || "";
+  return apiKeyPool.find((item) => !item.disabled && !item.exhausted)?.value || apiKeyPool[0]?.value || "";
 }
 
 export function persistApiKeyForBaseUrl(apiBaseUrl, value) {
@@ -230,6 +354,108 @@ export function persistApiKeyForBaseUrl(apiBaseUrl, value) {
   }
 
   persistJsonValue(API_KEYS_BY_BASE_URL_STORAGE_KEY, apiKeyMap);
+}
+
+export function getApiKeyPoolForBaseUrl(apiBaseUrl) {
+  return getStoredApiKeyPool(apiBaseUrl);
+}
+
+export function getSelectedApiKeyForBaseUrl(apiBaseUrl) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  if (!normalizedBaseUrl) {
+    return "";
+  }
+
+  const selectedApiKeyMap = readSelectedApiKeyMap();
+  return selectedApiKeyMap[normalizedBaseUrl] || "";
+}
+
+export function getApiKeysTextForBaseUrl(apiBaseUrl) {
+  return serializeApiKeysText(getStoredApiKeyPool(apiBaseUrl));
+}
+
+export function persistApiKeysForBaseUrl(apiBaseUrl, apiKeysText) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  if (!normalizedBaseUrl) {
+    return;
+  }
+
+  const nextPool = normalizeApiKeyPoolEntry(
+    String(apiKeysText || "")
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
+
+  const apiKeyPoolMap = readApiKeyPoolMap();
+  if (nextPool.length) {
+    const currentPool = getStoredApiKeyPool(normalizedBaseUrl);
+    const currentByValue = new Map(currentPool.map((item) => [item.value, item]));
+    apiKeyPoolMap[normalizedBaseUrl] = nextPool.map((item) => ({
+      ...item,
+      exhausted: Boolean(currentByValue.get(item.value)?.exhausted),
+      disabled: Boolean(currentByValue.get(item.value)?.disabled),
+      lastErrorAt: Number(currentByValue.get(item.value)?.lastErrorAt) || 0
+    }));
+  } else {
+    delete apiKeyPoolMap[normalizedBaseUrl];
+  }
+
+  persistApiKeyPoolMap(apiKeyPoolMap);
+
+  const selectedApiKey = getSelectedApiKeyForBaseUrl(normalizedBaseUrl);
+  if (selectedApiKey && !apiKeyPoolMap[normalizedBaseUrl]?.some((item) => item.value === selectedApiKey)) {
+    persistSelectedApiKeyForBaseUrl(normalizedBaseUrl, apiKeyPoolMap[normalizedBaseUrl]?.[0]?.value || "");
+  }
+}
+
+export function persistSelectedApiKeyForBaseUrl(apiBaseUrl, value) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  if (!normalizedBaseUrl) {
+    return;
+  }
+
+  const selectedApiKeyMap = readSelectedApiKeyMap();
+  const trimmedValue = (value || "").trim();
+
+  if (trimmedValue) {
+    selectedApiKeyMap[normalizedBaseUrl] = trimmedValue;
+  } else {
+    delete selectedApiKeyMap[normalizedBaseUrl];
+  }
+
+  persistJsonValue(API_SELECTED_KEY_BY_BASE_URL_STORAGE_KEY, selectedApiKeyMap);
+}
+
+export function markApiKeyExhausted(apiBaseUrl, apiKey) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  const targetKey = (apiKey || "").trim();
+  if (!normalizedBaseUrl || !targetKey) {
+    return;
+  }
+
+  const apiKeyPoolMap = readApiKeyPoolMap();
+  const currentPool = getStoredApiKeyPool(normalizedBaseUrl);
+  apiKeyPoolMap[normalizedBaseUrl] = currentPool.map((item) => item.value === targetKey
+    ? { ...item, exhausted: true, lastErrorAt: Date.now() }
+    : item);
+  persistApiKeyPoolMap(apiKeyPoolMap);
+  persistSelectedApiKeyForBaseUrl(normalizedBaseUrl, getApiKeyForBaseUrl(normalizedBaseUrl));
+}
+
+export function resetApiKeyStatus(apiBaseUrl, apiKey) {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+  const targetKey = (apiKey || "").trim();
+  if (!normalizedBaseUrl || !targetKey) {
+    return;
+  }
+
+  const apiKeyPoolMap = readApiKeyPoolMap();
+  const currentPool = getStoredApiKeyPool(normalizedBaseUrl);
+  apiKeyPoolMap[normalizedBaseUrl] = currentPool.map((item) => item.value === targetKey
+    ? { ...item, exhausted: false, lastErrorAt: 0 }
+    : item);
+  persistApiKeyPoolMap(apiKeyPoolMap);
 }
 
 export function persistAccessKey(value) {

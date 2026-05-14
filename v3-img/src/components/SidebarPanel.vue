@@ -1,7 +1,8 @@
 <script setup>
+import { computed, ref, watch } from "vue";
 import BaseDropdown from "./BaseDropdown.vue";
 
-defineProps({
+const props = defineProps({
   config: {
     type: Object,
     required: true
@@ -46,6 +47,91 @@ const emit = defineEmits([
   "delete-session",
   "clear-sessions"
 ]);
+
+const newApiKey = ref("");
+const apiKeyList = ref([]);
+const MANAGED_API_BASE_URL = "https://aicodelink.top/v1";
+
+function parseApiKeysText(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function syncApiKeysText() {
+  props.config.apiKeysText = apiKeyList.value.join("\n");
+}
+
+function maskApiKey(value) {
+  const trimmedValue = String(value || "").trim();
+  if (!trimmedValue) {
+    return "";
+  }
+
+  if (trimmedValue.length <= 10) {
+    return `${trimmedValue.slice(0, 2)}${"*".repeat(Math.max(trimmedValue.length - 4, 1))}${trimmedValue.slice(-2)}`;
+  }
+
+  return `${trimmedValue.slice(0, 4)}${"*".repeat(trimmedValue.length - 8)}${trimmedValue.slice(-4)}`;
+}
+
+function addApiKey() {
+  const trimmedValue = newApiKey.value.trim();
+  if (!trimmedValue || apiKeyList.value.includes(trimmedValue)) {
+    newApiKey.value = "";
+    return;
+  }
+
+  apiKeyList.value = [...apiKeyList.value, trimmedValue];
+  if (!props.config.selectedApiKey) {
+    props.config.selectedApiKey = trimmedValue;
+  }
+  newApiKey.value = "";
+  syncApiKeysText();
+}
+
+function removeApiKey(index) {
+  const removedApiKey = apiKeyList.value[index] || "";
+  apiKeyList.value = apiKeyList.value.filter((_, itemIndex) => itemIndex !== index);
+  if (props.config.selectedApiKey === removedApiKey) {
+    props.config.selectedApiKey = apiKeyList.value[0] || "";
+  }
+  syncApiKeysText();
+}
+
+function selectApiKey(value) {
+  props.config.selectedApiKey = value;
+}
+
+watch(
+  () => props.config.apiKeysText,
+  (nextValue) => {
+    apiKeyList.value = parseApiKeysText(nextValue);
+  },
+  { immediate: true }
+);
+
+const maskedApiKeyList = computed(() => apiKeyList.value.map((value, index) => ({
+  id: `${index}_${value.slice(-6)}`,
+  value,
+  maskedValue: maskApiKey(value),
+  isActive: props.config.selectedApiKey === value
+})));
+
+const canManageApiKeys = computed(() => props.config.apiBaseUrl === MANAGED_API_BASE_URL);
+
+watch(
+  [() => props.config.selectedApiKey, () => apiKeyList.value],
+  ([selectedApiKey, currentApiKeyList]) => {
+    if (!canManageApiKeys.value || !currentApiKeyList.length || selectedApiKey) {
+      return;
+    }
+
+    props.config.selectedApiKey = currentApiKeyList[0];
+  },
+  { immediate: true, deep: true }
+);
 </script>
 
 <template>
@@ -62,8 +148,54 @@ const emit = defineEmits([
         <span>仅保存在当前浏览器</span>
       </div>
       <div class="field">
-        <label for="apiKey">API Key</label>
-        <input id="apiKey" v-model="config.apiKey" class="input" type="password" placeholder="输入第三方接口的 API Key" autocomplete="off" :disabled="disabled" />
+        <label for="apiKeyInput">API Keys</label>
+        <div v-if="canManageApiKeys" class="api-key-entry">
+          <input
+            id="apiKeyInput"
+            v-model="newApiKey"
+            class="input"
+            type="password"
+            placeholder="输入一个 API Key 后点击添加"
+            autocomplete="off"
+            :disabled="disabled"
+            @keydown.enter.prevent="addApiKey"
+          />
+          <button class="head-action-btn create-action api-key-add-btn" type="button" :disabled="disabled" @click="addApiKey">
+            添加
+          </button>
+        </div>
+        <input
+          v-else
+          id="apiKeyInput"
+          v-model="config.apiKey"
+          class="input"
+          type="password"
+          placeholder="输入第三方接口的 API Key"
+          autocomplete="off"
+          :disabled="disabled"
+        />
+        <div v-if="canManageApiKeys" class="api-key-list">
+          <article
+            v-for="(item, index) in maskedApiKeyList"
+            :key="item.id"
+            class="api-key-item"
+            :class="{ 'is-active': item.isActive }"
+          >
+            <button class="api-key-main" type="button" :disabled="disabled" @click="selectApiKey(item.value)">
+              <div class="api-key-copy">
+                <strong>Key {{ index + 1 }}</strong>
+                <span>{{ item.maskedValue }}</span>
+              </div>
+            </button>
+            <div class="api-key-actions">
+              <button class="session-delete api-key-remove-btn" type="button" aria-label="删除 API Key" :disabled="disabled" @click="removeApiKey(index)">×</button>
+            </div>
+          </article>
+          <div v-if="!maskedApiKeyList.length" class="api-key-empty">
+            <strong>暂无 API Key</strong>
+            <p>点击上方添加后，将按列表顺序自动轮换。</p>
+          </div>
+        </div>
       </div>
       <div class="field">
         <label for="accessKey">访问码</label>
@@ -78,7 +210,7 @@ const emit = defineEmits([
           :disabled="disabled"
         />
       </div>
-      <p class="access-hint">不要在公共设备保存密钥。历史会话和图片缓存都只在本地可见。</p>
+      <p class="access-hint">密钥仅保存在当前浏览器本地。`https://aicodelink.top/v1` 支持多 Key 脱敏管理、当前使用高亮和手动切换。</p>
     </section>
 
     <section class="sidebar-card sessions-panel">

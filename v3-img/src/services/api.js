@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = "https://api.zectai.com/v1";
+const DEFAULT_API_BASE_URL = "https://aicodelink.top/v1";
 const IMAGE_MODEL = "gpt-image-2";
 const ALLOWED_SIZES = new Set(["1024x1024", "1536x1024", "1024x1536"]);
 

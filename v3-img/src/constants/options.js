@@ -9,7 +9,12 @@ export const STYLE_PROMPTS = {
 
 export const API_BASE_URL_OPTIONS = [
   {
-    label: "ZectAI 默认",
+    label: "AICodeLink 默认",
+    value: "https://aicodelink.top/v1",
+    meta: "https://aicodelink.top/v1"
+  },
+  {
+    label: "ZectAI 备用",
     value: "https://api.zectai.com/v1",
     meta: "https://api.zectai.com/v1"
   },

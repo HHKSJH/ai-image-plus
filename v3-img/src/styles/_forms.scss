@@ -150,6 +150,100 @@
   outline: none;
 }
 
+.api-keys-input {
+  min-height: 124px;
+}
+
+.api-key-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.api-key-add-btn {
+  min-height: 52px;
+}
+
+.api-key-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.api-key-item,
+.api-key-empty {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.api-key-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 8px 10px 8px 14px;
+}
+
+.api-key-item.is-active {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: rgba(237, 248, 246, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.12);
+}
+
+.api-key-main {
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  flex: 1;
+  text-align: left;
+  border-radius: 12px;
+}
+
+.api-key-copy {
+  min-width: 0;
+}
+
+.api-key-copy strong,
+.api-key-empty strong {
+  display: block;
+  font-size: 13px;
+}
+
+.api-key-copy span,
+.api-key-empty p {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.api-key-empty {
+  padding: 14px;
+}
+
+.api-key-empty p {
+  margin-bottom: 0;
+}
+
+.api-key-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.api-key-remove-btn {
+  min-height: 36px;
+  width: 36px;
+  padding: 0;
+  border-radius: 12px;
+  flex: 0 0 auto;
+}
+
 button {
   border: 0;
   border-radius: 18px;
