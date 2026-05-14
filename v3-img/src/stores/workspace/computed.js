@@ -12,6 +12,7 @@ function getMessageImageCount(message) {
 export function createWorkspaceComputed(state) {
   const currentSession = computed(() => state.currentSessions[state.activeMode.value]);
   const currentForm = computed(() => state.forms[state.activeMode.value]);
+  const selectedMessageCount = computed(() => state.selectedMessageIds.value.length);
 
   const currentTag = computed(() => (
     currentSession.value.messages.length
@@ -64,6 +65,7 @@ export function createWorkspaceComputed(state) {
   return {
     currentForm,
     currentSession,
+    selectedMessageCount,
     currentSubtitle,
     currentTag,
     contextSummaryText,

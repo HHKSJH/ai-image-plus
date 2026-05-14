@@ -1,4 +1,6 @@
 <script setup>
+const trashIconPath = "M5 7h14M9 7V5h6v2M8 10v7M12 10v7M16 10v7M7 7l1 13h8l1-13";
+
 defineProps({
   open: {
     type: Boolean,
@@ -18,7 +20,12 @@ const emit = defineEmits(["cancel", "confirm"]);
       <p id="clearAllConfirmDesc">这会清空当前 tab 下保存的会话记录和对应图片缓存，释放本地存储空间，操作后不能恢复。</p>
       <div class="confirm-actions">
         <button class="secondary" type="button" @click="emit('cancel')">取消</button>
-        <button class="danger-solid" type="button" @click="emit('confirm')">确认删除</button>
+        <button class="danger-solid" type="button" @click="emit('confirm')">
+          <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path :d="trashIconPath" />
+          </svg>
+          确认删除
+        </button>
       </div>
     </div>
   </div>

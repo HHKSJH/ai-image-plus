@@ -70,8 +70,15 @@ onBeforeUnmount(() => {
         :tag="workspace.currentTag"
         :messages="workspace.currentSession.messages"
         :is-loading="workspace.isLoading"
+        :is-selection-mode="workspace.isMessageSelectionMode"
+        :selected-message-ids="workspace.selectedMessageIds"
+        :selected-message-count="workspace.selectedMessageCount"
         @preview="workspace.openPreview"
         @retry="workspace.retryLastRequest"
+        @enter-selection="workspace.enterMessageSelection"
+        @toggle-selection="workspace.toggleMessageSelection"
+        @clear-selection="workspace.clearMessageSelection"
+        @delete-selected="workspace.deleteSelectedMessages"
       />
 
       <ComposerPanel

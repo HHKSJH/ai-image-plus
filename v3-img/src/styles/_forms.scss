@@ -233,15 +233,20 @@
 .api-key-actions {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
 }
 
 .api-key-remove-btn {
-  min-height: 36px;
-  width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  width: 40px;
   padding: 0;
   border-radius: 12px;
   flex: 0 0 auto;
+  align-self: center;
 }
 
 button {
@@ -274,6 +279,7 @@ button:disabled {
 .head-action-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 38px;
   white-space: nowrap;
@@ -285,6 +291,19 @@ button:disabled {
   box-shadow: 0 10px 20px rgba(26, 43, 61, 0.08);
   font-size: 13px;
   font-weight: 700;
+  line-height: 1;
+}
+
+.action-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  display: block;
 }
 
 .create-action {

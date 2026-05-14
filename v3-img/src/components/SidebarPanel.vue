@@ -5,52 +5,54 @@ import BaseDropdown from "./BaseDropdown.vue";
 const props = defineProps({
   config: {
     type: Object,
-    required: true
+    required: true,
   },
   apiBaseUrlOptions: {
     type: Array,
-    required: true
+    required: true,
   },
   sessions: {
     type: Array,
-    required: true
+    required: true,
   },
   activeSessionId: {
     type: String,
-    required: true
+    required: true,
   },
   sessionMeta: {
     type: String,
-    required: true
+    required: true,
   },
   storageUsageText: {
     type: String,
-    required: true
+    required: true,
   },
   storageUsageWidth: {
     type: Number,
-    required: true
+    required: true,
   },
   storageIsWarning: {
     type: Boolean,
-    default: false
+    default: false,
   },
   disabled: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 const emit = defineEmits([
   "new-session",
   "open-session",
   "delete-session",
-  "clear-sessions"
+  "clear-sessions",
 ]);
 
 const newApiKey = ref("");
 const apiKeyList = ref([]);
 const MANAGED_API_BASE_URL = "https://aicodelink.top/v1";
+const plusIconPath = "M12 5v14M5 12h14";
+const trashIconPath = "M5 7h14M9 7V5h6v2M8 10v7M12 10v7M16 10v7M7 7l1 13h8l1-13";
 
 function parseApiKeysText(value) {
   return String(value || "")
@@ -70,10 +72,14 @@ function maskApiKey(value) {
   }
 
   if (trimmedValue.length <= 10) {
-    return `${trimmedValue.slice(0, 2)}${"*".repeat(Math.max(trimmedValue.length - 4, 1))}${trimmedValue.slice(-2)}`;
+    return `${trimmedValue.slice(0, 2)}${"*".repeat(
+      Math.max(trimmedValue.length - 4, 1)
+    )}${trimmedValue.slice(-2)}`;
   }
 
-  return `${trimmedValue.slice(0, 4)}${"*".repeat(trimmedValue.length - 8)}${trimmedValue.slice(-4)}`;
+  return `${trimmedValue.slice(0, 4)}${"*".repeat(
+    trimmedValue.length - 8
+  )}${trimmedValue.slice(-4)}`;
 }
 
 function addApiKey() {
@@ -112,12 +118,14 @@ watch(
   { immediate: true }
 );
 
-const maskedApiKeyList = computed(() => apiKeyList.value.map((value, index) => ({
-  id: `${index}_${value.slice(-6)}`,
-  value,
-  maskedValue: maskApiKey(value),
-  isActive: props.config.selectedApiKey === value
-})));
+const maskedApiKeyList = computed(() =>
+  apiKeyList.value.map((value, index) => ({
+    id: `${index}_${value.slice(-6)}`,
+    value,
+    maskedValue: maskApiKey(value),
+    isActive: props.config.selectedApiKey === value,
+  }))
+);
 
 const canManageApiKeys = computed(() => props.config.apiBaseUrl === MANAGED_API_BASE_URL);
 
@@ -139,7 +147,9 @@ watch(
     <div class="brand-panel">
       <p class="eyebrow">Image Workspace</p>
       <h1>把一句想法，变成一张图。</h1>
-      <p class="brand-copy">本地保存会话结构，按需恢复当前会话。图片资源单独存储，不一次性拖慢页面。</p>
+      <p class="brand-copy">
+        本地保存会话结构，按需恢复当前会话。图片资源单独存储，不一次性拖慢页面。
+      </p>
     </div>
 
     <section class="sidebar-card">
@@ -160,8 +170,16 @@ watch(
             :disabled="disabled"
             @keydown.enter.prevent="addApiKey"
           />
-          <button class="head-action-btn create-action api-key-add-btn" type="button" :disabled="disabled" @click="addApiKey">
-            添加
+          <button
+            class="head-action-btn create-action api-key-add-btn"
+            type="button"
+            :disabled="disabled"
+            @click="addApiKey"
+          >
+            <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path :d="plusIconPath" />
+            </svg>
+            <span>添加</span>
           </button>
         </div>
         <input
@@ -181,14 +199,29 @@ watch(
             class="api-key-item"
             :class="{ 'is-active': item.isActive }"
           >
-            <button class="api-key-main" type="button" :disabled="disabled" @click="selectApiKey(item.value)">
+            <button
+              class="api-key-main"
+              type="button"
+              :disabled="disabled"
+              @click="selectApiKey(item.value)"
+            >
               <div class="api-key-copy">
                 <strong>Key {{ index + 1 }}</strong>
                 <span>{{ item.maskedValue }}</span>
               </div>
             </button>
             <div class="api-key-actions">
-              <button class="session-delete api-key-remove-btn" type="button" aria-label="删除 API Key" :disabled="disabled" @click="removeApiKey(index)">×</button>
+              <button
+                class="session-delete api-key-remove-btn"
+                type="button"
+                aria-label="删除 API Key"
+                :disabled="disabled"
+                @click="removeApiKey(index)"
+              >
+                <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path :d="trashIconPath" />
+                </svg>
+              </button>
             </div>
           </article>
           <div v-if="!maskedApiKeyList.length" class="api-key-empty">
@@ -199,7 +232,15 @@ watch(
       </div>
       <div class="field">
         <label for="accessKey">访问码</label>
-        <input id="accessKey" v-model="config.accessKey" class="input" type="password" placeholder="可选，用来区分你的使用入口" autocomplete="off" :disabled="disabled" />
+        <input
+          id="accessKey"
+          v-model="config.accessKey"
+          class="input"
+          type="password"
+          placeholder="可选，用来区分你的使用入口"
+          autocomplete="off"
+          :disabled="disabled"
+        />
       </div>
       <div class="field">
         <label for="apiBaseUrlTrigger">接口地址</label>
@@ -210,7 +251,10 @@ watch(
           :disabled="disabled"
         />
       </div>
-      <p class="access-hint">密钥仅保存在当前浏览器本地。`https://aicodelink.top/v1` 支持多 Key 脱敏管理、当前使用高亮和手动切换。</p>
+      <p class="access-hint">
+        密钥仅保存在当前浏览器本地。`https://aicodelink.top/v1` 支持多 Key
+        脱敏管理、当前使用高亮和手动切换。
+      </p>
     </section>
 
     <section class="sidebar-card sessions-panel">
@@ -220,8 +264,17 @@ watch(
           <span>{{ sessionMeta }}</span>
         </div>
         <div class="head-actions">
-          <button class="head-action-btn create-action" type="button" aria-label="新建会话" :disabled="disabled" @click="emit('new-session')">
-            <span>新建会话</span>
+          <button
+            class="head-action-btn create-action"
+            type="button"
+            aria-label="新建会话"
+            :disabled="disabled"
+            @click="emit('new-session')"
+          >
+            <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path :d="plusIconPath" />
+            </svg>
+            <span style="margin-top: 0">新建会话</span>
           </button>
         </div>
       </div>
@@ -232,9 +285,15 @@ watch(
           <span>{{ storageUsageText }}</span>
         </div>
         <div class="storage-track" aria-hidden="true">
-          <div class="storage-fill" :class="{ 'is-warning': storageIsWarning }" :style="{ width: `${storageUsageWidth}%` }"></div>
+          <div
+            class="storage-fill"
+            :class="{ 'is-warning': storageIsWarning }"
+            :style="{ width: `${storageUsageWidth}%` }"
+          ></div>
         </div>
-        <p class="storage-hint">仅加载当前会话。超过阈值会自动清理最旧会话，避免页面变慢。</p>
+        <p class="storage-hint">
+          仅加载当前会话。超过阈值会自动清理最旧会话，避免页面变慢。
+        </p>
       </div>
 
       <div class="session-list" aria-live="polite">
@@ -245,11 +304,24 @@ watch(
             class="session-item"
             :class="{ 'is-active': session.id === activeSessionId }"
           >
-            <button class="session-main" type="button" @click="emit('open-session', session.id)">
+            <button
+              class="session-main"
+              type="button"
+              @click="emit('open-session', session.id)"
+            >
               <strong>{{ session.title }}</strong>
               <small>{{ session.imageCount }} 张图 · {{ session.relativeTime }}</small>
             </button>
-            <button class="session-delete" type="button" aria-label="删除会话" @click="emit('delete-session', session.id)">×</button>
+            <button
+              class="session-delete"
+              type="button"
+              aria-label="删除会话"
+              @click="emit('delete-session', session.id)"
+            >
+              <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path :d="trashIconPath" />
+              </svg>
+            </button>
           </article>
         </template>
         <div v-else class="session-empty">
@@ -259,7 +331,15 @@ watch(
       </div>
 
       <div class="sessions-danger-zone">
-        <button class="panel-danger-btn" type="button" :disabled="disabled" @click="emit('clear-sessions')">
+        <button
+          class="panel-danger-btn"
+          type="button"
+          :disabled="disabled"
+          @click="emit('clear-sessions')"
+        >
+          <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path :d="trashIconPath" />
+          </svg>
           <span>删除当前分类</span>
         </button>
         <p class="sessions-danger-hint">只会清空当前 tab 下的本地会话和图片缓存。</p>

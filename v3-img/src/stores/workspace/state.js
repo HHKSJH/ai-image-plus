@@ -59,6 +59,8 @@ export function createWorkspaceState() {
     isInitialized: ref(false),
     isLoading: ref(false),
     errorText: ref(""),
+    selectedMessageIds: ref([]),
+    isMessageSelectionMode: ref(false),
     previewModalUrl: ref(""),
     editPreviewUrl: ref(""),
     clearConfirmOpen: ref(false),

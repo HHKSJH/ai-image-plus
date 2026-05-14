@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { ref } from "vue";
+
+const props = defineProps({
   title: {
     type: String,
     required: true
@@ -19,10 +21,26 @@ defineProps({
   isLoading: {
     type: Boolean,
     default: false
+  },
+  isSelectionMode: {
+    type: Boolean,
+    default: false
+  },
+  selectedMessageIds: {
+    type: Array,
+    default: () => []
+  },
+  selectedMessageCount: {
+    type: Number,
+    default: 0
   }
 });
 
-const emit = defineEmits(["preview", "retry"]);
+const emit = defineEmits(["preview", "retry", "enter-selection", "toggle-selection", "clear-selection", "delete-selected"]);
+const longPressTimer = ref(null);
+const LONG_PRESS_MS = 420;
+const trashIconPath = "M5 7h14M9 7V5h6v2M8 10v7M12 10v7M16 10v7M7 7l1 13h8l1-13";
+const checkIconPath = "M5 12.5l4.2 4.2L19 7.8";
 
 function getMessageImages(message) {
   if (Array.isArray(message.imageUrls) && message.imageUrls.length) {
@@ -30,6 +48,35 @@ function getMessageImages(message) {
   }
 
   return message.imageUrl ? [message.imageUrl] : [];
+}
+
+function isSelected(messageId) {
+  return props.selectedMessageIds.includes(messageId);
+}
+
+function startLongPress(messageId) {
+  clearLongPress();
+  longPressTimer.value = window.setTimeout(() => {
+    emit("enter-selection", messageId);
+    clearLongPress();
+  }, LONG_PRESS_MS);
+}
+
+function clearLongPress() {
+  if (!longPressTimer.value) {
+    return;
+  }
+
+  window.clearTimeout(longPressTimer.value);
+  longPressTimer.value = null;
+}
+
+function handleMessageClick(message) {
+  if (!props.isSelectionMode) {
+    return;
+  }
+
+  emit("toggle-selection", message.id);
 }
 </script>
 
@@ -43,7 +90,25 @@ function getMessageImages(message) {
       <div class="tag">{{ tag }}</div>
     </div>
 
-    <div class="chat">
+    <div v-if="isSelectionMode" class="message-selection-bar">
+      <strong>
+        <svg class="action-icon selection-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path :d="checkIconPath" />
+        </svg>
+        已选 {{ selectedMessageCount }} 条
+      </strong>
+      <div class="message-selection-actions">
+        <button class="ghost selection-action" type="button" @click="emit('clear-selection')">取消</button>
+        <button class="danger-solid selection-action" type="button" :disabled="!selectedMessageCount" @click="emit('delete-selected')">
+          <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path :d="trashIconPath" />
+          </svg>
+          删除
+        </button>
+      </div>
+    </div>
+
+    <div class="chat" :class="{ 'is-selection-mode': isSelectionMode }">
       <div v-if="!messages.length" class="empty">
         <div class="empty-card">
           <strong>开始生成你的第一张图片</strong>
@@ -52,7 +117,26 @@ function getMessageImages(message) {
       </div>
 
       <template v-else>
-        <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
+        <article
+          v-for="message in messages"
+          :key="message.id"
+          class="message"
+          :class="[message.role, { 'is-selectable': isSelectionMode, 'is-selected': isSelected(message.id) }]"
+          @mousedown="startLongPress(message.id)"
+          @mouseup="clearLongPress"
+          @mouseleave="clearLongPress"
+          @touchstart="startLongPress(message.id)"
+          @touchend="clearLongPress"
+          @touchcancel="clearLongPress"
+          @click="handleMessageClick(message)"
+        >
+          <div v-if="isSelectionMode" class="message-check">
+            <span class="message-check-indicator">
+              <svg v-if="isSelected(message.id)" class="action-icon check-indicator-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path :d="checkIconPath" />
+              </svg>
+            </span>
+          </div>
           <div class="bubble">
             {{ message.text }}
             <div v-if="getMessageImages(message).length" class="card">
@@ -63,12 +147,12 @@ function getMessageImages(message) {
                   :src="imageUrl"
                   alt="生成结果"
                   loading="lazy"
-                  @click="emit('preview', imageUrl)"
+                  @click.stop="emit('preview', imageUrl)"
                 />
               </div>
             </div>
-            <div v-if="message.canRetry" class="message-actions">
-              <button class="secondary retry-action" type="button" @click="emit('retry')">重试</button>
+            <div v-if="message.canRetry && !isSelectionMode" class="message-actions">
+              <button class="secondary retry-action" type="button" @click.stop="emit('retry')">重试</button>
             </div>
           </div>
         </article>
