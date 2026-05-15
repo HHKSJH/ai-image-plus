@@ -22,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  canRetry: {
+    type: Boolean,
+    default: false
+  },
   isSelectionMode: {
     type: Boolean,
     default: false
@@ -196,7 +200,7 @@ function handleImageClick(message, imageUrl) {
                 />
               </div>
             </div>
-            <div v-if="message.canRetry && !isSelectionMode" class="message-actions">
+            <div v-if="message.canRetry && canRetry && !isSelectionMode" class="message-actions">
               <button class="secondary retry-action" type="button" @click.stop="emit('retry')">重试</button>
             </div>
           </div>

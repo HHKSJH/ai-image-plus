@@ -4,6 +4,12 @@ import { fileToRenderData, imageDataToRenderData } from "../../utils/image";
 import { buildFinalPrompt, buildPrompt, buildSessionTitle } from "./helpers";
 
 export function createWorkspaceRequestActions(state, computedState, shared) {
+  function setCurrentSessionLastRequestPayload(payload) {
+    const normalizedPayload = payload ? { ...payload } : null;
+    computedState.currentSession.value.lastRequestPayload = normalizedPayload;
+    state.lastRequestPayloads[state.activeMode.value] = normalizedPayload;
+  }
+
   function listAvailableApiKeys(apiBaseUrl) {
     return storage.getApiKeyPoolForBaseUrl(apiBaseUrl)
       .filter((item) => !item.disabled && !item.exhausted)
@@ -124,7 +130,7 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
     }
 
     persistLocalConfig(payload);
-    state.lastRequestPayloads.generate = { ...payload };
+    setCurrentSessionLastRequestPayload(payload);
     const finalPrompt = buildFinalPrompt(
       payload.prompt,
       payload.stylePreset,
@@ -198,7 +204,7 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
     }
 
     persistLocalConfig(payload);
-    state.lastRequestPayloads.edit = { ...payload };
+    setCurrentSessionLastRequestPayload(payload);
 
     if (appendUserMessage) {
       const sourceRenderData = fileToRenderData(payload.sourceImageFile);
@@ -273,25 +279,33 @@ export function createWorkspaceRequestActions(state, computedState, shared) {
   }
 
   async function retryLastRequest() {
-    if (!state.lastRequestPayloads[state.activeMode.value]) {
+    const lastRequestPayload = computedState.currentSession.value.lastRequestPayload || state.lastRequestPayloads[state.activeMode.value];
+    if (!lastRequestPayload) {
       state.errorText.value = "没有可重试的请求。";
       return;
     }
 
     state.errorText.value = "";
+    state.config.accessKey = lastRequestPayload.accessKey || state.config.accessKey;
+    state.config.apiBaseUrl = lastRequestPayload.apiBaseUrl || state.config.apiBaseUrl;
 
-    if (state.activeMode.value === "edit") {
-      state.forms.edit.prompt = state.lastRequestPayloads.edit.prompt;
-      state.forms.edit.size = state.lastRequestPayloads.edit.size;
-      state.forms.edit.sourceImageFile = state.lastRequestPayloads.edit.sourceImageFile;
-      shared.updateEditPreview(state.lastRequestPayloads.edit.sourceImageFile);
+    if (lastRequestPayload.mode === "edit") {
+      if (!lastRequestPayload.sourceImageFile) {
+        state.errorText.value = "当前编辑请求缺少可恢复的源图，刷新后无法直接重试。";
+        return;
+      }
+
+      state.forms.edit.prompt = lastRequestPayload.prompt;
+      state.forms.edit.size = lastRequestPayload.size;
+      state.forms.edit.sourceImageFile = lastRequestPayload.sourceImageFile;
+      shared.updateEditPreview(lastRequestPayload.sourceImageFile);
       await runEdit({ appendUserMessage: false });
       return;
     }
 
-    state.forms.generate.prompt = state.lastRequestPayloads.generate.prompt;
-    state.forms.generate.size = state.lastRequestPayloads.generate.size;
-    state.forms.generate.stylePreset = state.lastRequestPayloads.generate.stylePreset;
+    state.forms.generate.prompt = lastRequestPayload.prompt;
+    state.forms.generate.size = lastRequestPayload.size;
+    state.forms.generate.stylePreset = lastRequestPayload.stylePreset;
     await runGeneration({ appendUserMessage: false });
   }
 

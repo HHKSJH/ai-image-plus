@@ -41,8 +41,9 @@
 
 .session-item {
   display: flex;
-justify-content: space-between;
-align-items: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   padding: 8px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
@@ -79,6 +80,8 @@ align-items: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   padding: 12px 14px;
   text-align: left;
@@ -106,6 +109,7 @@ align-items: center;
 
 .session-delete {
   display: inline-flex;
+  flex: 0 0 42px;
   align-items: center;
   justify-content: center;
   width: 42px;

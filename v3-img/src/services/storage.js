@@ -286,6 +286,87 @@ function serializeImageRef(imageRef, assetWrites, createdAt, sessionId) {
   };
 }
 
+function normalizeRetryPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  if (payload.mode === "edit") {
+    return {
+      mode: "edit",
+      prompt: typeof payload.prompt === "string" ? payload.prompt : "",
+      accessKey: typeof payload.accessKey === "string" ? payload.accessKey : "",
+      apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+      size: typeof payload.size === "string" ? payload.size : "1024x1024",
+      sourceImageRef: payload.sourceImageRef || null,
+      sourceImageFile: payload.sourceImageFile instanceof Blob ? payload.sourceImageFile : null,
+      sourceImageName: typeof payload.sourceImageName === "string" ? payload.sourceImageName : "retry-edit-source.png"
+    };
+  }
+
+  return {
+    mode: "generate",
+    prompt: typeof payload.prompt === "string" ? payload.prompt : "",
+    accessKey: typeof payload.accessKey === "string" ? payload.accessKey : "",
+    apiBaseUrl: typeof payload.apiBaseUrl === "string" ? payload.apiBaseUrl : "",
+    size: typeof payload.size === "string" ? payload.size : "1024x1024",
+    stylePreset: typeof payload.stylePreset === "string" ? payload.stylePreset : "auto"
+  };
+}
+
+function serializeRetryPayload(payload, assetWrites, session) {
+  const normalizedPayload = normalizeRetryPayload(payload);
+  if (!normalizedPayload) {
+    return null;
+  }
+
+  if (normalizedPayload.mode !== "edit" || !normalizedPayload.sourceImageFile) {
+    return normalizedPayload;
+  }
+
+  const sourceImageRef = serializeImageRef(
+    {
+      kind: "asset",
+      assetId: normalizedPayload.sourceImageRef?.assetId || createId("asset"),
+      blob: normalizedPayload.sourceImageFile
+    },
+    assetWrites,
+    session.updatedAt || session.createdAt || Date.now(),
+    session.id
+  );
+
+  return {
+    ...normalizedPayload,
+    sourceImageRef,
+    sourceImageName: normalizedPayload.sourceImageFile.name || normalizedPayload.sourceImageName,
+    sourceImageType: normalizedPayload.sourceImageFile.type || "image/png",
+    sourceImageFile: undefined
+  };
+}
+
+async function inflateRetryPayload(payload, assetStore) {
+  const normalizedPayload = normalizeRetryPayload(payload);
+  if (!normalizedPayload) {
+    return null;
+  }
+
+  if (normalizedPayload.mode !== "edit" || !payload?.sourceImageRef) {
+    return normalizedPayload;
+  }
+
+  const inflatedSource = await inflateImageRef(payload.sourceImageRef, assetStore);
+  const blob = inflatedSource.imageRef?.blob || null;
+
+  return {
+    ...normalizedPayload,
+    sourceImageRef: inflatedSource.imageRef || payload.sourceImageRef || null,
+    sourceImageFile: blob
+      ? new File([blob], payload.sourceImageName || normalizedPayload.sourceImageName, { type: payload.sourceImageType || blob.type || "image/png" })
+      : null,
+    sourceImageName: payload.sourceImageName || normalizedPayload.sourceImageName
+  };
+}
+
 export function createId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -300,6 +381,7 @@ export function createSession(mode = "generate") {
     updatedAt: now,
     lastPrompt: "",
     contextPrompt: "",
+    lastRequestPayload: null,
     messages: []
   };
 }
@@ -513,7 +595,11 @@ export async function getSession(sessionId) {
       });
     }
 
-    return { ...session, messages };
+    return {
+      ...session,
+      lastRequestPayload: await inflateRetryPayload(session.lastRequestPayload, assetStore),
+      messages
+    };
   });
 }
 
@@ -549,6 +635,7 @@ export async function saveSession(session) {
   const sessionToStore = {
     ...session,
     mode: normalizeMode(session.mode),
+    lastRequestPayload: serializeRetryPayload(session.lastRequestPayload, assetWrites, session),
     messages,
     updatedAt: Date.now()
   };
@@ -570,6 +657,9 @@ export async function deleteSession(sessionId) {
   const assetIds = existing.messages.flatMap((message) => getStoredImageRefs(message)
     .filter((imageRef) => imageRef?.kind === "asset")
     .map((imageRef) => imageRef.assetId));
+  if (existing.lastRequestPayload?.sourceImageRef?.kind === "asset") {
+    assetIds.push(existing.lastRequestPayload.sourceImageRef.assetId);
+  }
 
   await withStores([SESSION_STORE, ASSET_STORE], "readwrite", ({ [SESSION_STORE]: sessionStore, [ASSET_STORE]: assetStore }) => {
     sessionStore.delete(sessionId);
@@ -582,9 +672,17 @@ export async function clearSessionsByMode(mode = "generate") {
   const sessions = await withStores([SESSION_STORE], "readonly", ({ [SESSION_STORE]: sessionStore }) => requestToPromise(sessionStore.getAll()));
   const targetSessions = sessions.filter((session) => normalizeMode(session.mode) === targetMode);
   const targetIds = new Set(targetSessions.map((session) => session.id));
-  const assetIds = targetSessions.flatMap((session) => session.messages.flatMap((message) => getStoredImageRefs(message)
-    .filter((imageRef) => imageRef?.kind === "asset")
-    .map((imageRef) => imageRef.assetId)));
+  const assetIds = targetSessions.flatMap((session) => {
+    const messageAssetIds = session.messages.flatMap((message) => getStoredImageRefs(message)
+      .filter((imageRef) => imageRef?.kind === "asset")
+      .map((imageRef) => imageRef.assetId));
+
+    if (session.lastRequestPayload?.sourceImageRef?.kind === "asset") {
+      messageAssetIds.push(session.lastRequestPayload.sourceImageRef.assetId);
+    }
+
+    return messageAssetIds;
+  });
 
   if (!targetIds.size) {
     return;

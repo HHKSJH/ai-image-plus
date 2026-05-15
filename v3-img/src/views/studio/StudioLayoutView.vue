@@ -70,6 +70,7 @@ onBeforeUnmount(() => {
         :tag="workspace.currentTag"
         :messages="workspace.currentSession.messages"
         :is-loading="workspace.isLoading"
+        :can-retry="Boolean(workspace.currentSession.lastRequestPayload)"
         :is-selection-mode="workspace.isMessageSelectionMode"
         :selected-message-ids="workspace.selectedMessageIds"
         :selected-message-count="workspace.selectedMessageCount"
