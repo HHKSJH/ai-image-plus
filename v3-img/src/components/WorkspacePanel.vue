@@ -39,6 +39,8 @@ const props = defineProps({
 const emit = defineEmits(["preview", "retry", "enter-selection", "toggle-selection", "clear-selection", "delete-selected"]);
 const longPressTimer = ref(null);
 const LONG_PRESS_MS = 420;
+const TOUCH_MOVE_TOLERANCE_PX = 10;
+const touchStartPoint = ref(null);
 const trashIconPath = "M5 7h14M9 7V5h6v2M8 10v7M12 10v7M16 10v7M7 7l1 13h8l1-13";
 const checkIconPath = "M5 12.5l4.2 4.2L19 7.8";
 
@@ -69,6 +71,39 @@ function clearLongPress() {
 
   window.clearTimeout(longPressTimer.value);
   longPressTimer.value = null;
+  touchStartPoint.value = null;
+}
+
+function handleTouchStart(messageId, event) {
+  const touch = event.touches[0];
+  if (!touch) {
+    return;
+  }
+
+  touchStartPoint.value = {
+    x: touch.clientX,
+    y: touch.clientY
+  };
+
+  startLongPress(messageId);
+}
+
+function handleTouchMove(event) {
+  if (!longPressTimer.value || !touchStartPoint.value) {
+    return;
+  }
+
+  const touch = event.touches[0];
+  if (!touch) {
+    return;
+  }
+
+  const deltaX = Math.abs(touch.clientX - touchStartPoint.value.x);
+  const deltaY = Math.abs(touch.clientY - touchStartPoint.value.y);
+
+  if (deltaX > TOUCH_MOVE_TOLERANCE_PX || deltaY > TOUCH_MOVE_TOLERANCE_PX) {
+    clearLongPress();
+  }
 }
 
 function handleMessageClick(message) {
@@ -77,6 +112,15 @@ function handleMessageClick(message) {
   }
 
   emit("toggle-selection", message.id);
+}
+
+function handleImageClick(message, imageUrl) {
+  if (props.isSelectionMode) {
+    emit("toggle-selection", message.id);
+    return;
+  }
+
+  emit("preview", imageUrl);
 }
 </script>
 
@@ -125,7 +169,8 @@ function handleMessageClick(message) {
           @mousedown="startLongPress(message.id)"
           @mouseup="clearLongPress"
           @mouseleave="clearLongPress"
-          @touchstart="startLongPress(message.id)"
+          @touchstart="handleTouchStart(message.id, $event)"
+          @touchmove="handleTouchMove"
           @touchend="clearLongPress"
           @touchcancel="clearLongPress"
           @click="handleMessageClick(message)"
@@ -147,7 +192,7 @@ function handleMessageClick(message) {
                   :src="imageUrl"
                   alt="生成结果"
                   loading="lazy"
-                  @click.stop="emit('preview', imageUrl)"
+                  @click.stop="handleImageClick(message, imageUrl)"
                 />
               </div>
             </div>

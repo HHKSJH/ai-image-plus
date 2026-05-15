@@ -348,9 +348,17 @@ button:disabled {
 
 .danger-solid {
   min-width: 144px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: #fff;
   box-shadow: 0 16px 28px rgba(220, 38, 38, 0.22);
+}
+
+.danger-solid .action-icon {
+  transform: translateY(1px);
 }
 
 .retry-button {
